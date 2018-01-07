@@ -916,6 +916,8 @@ bool CIRCNetwork::AddChan(CChan* pChan) {
     }
 
     m_vChans.push_back(pChan);
+    SortChans();
+
     return true;
 }
 
@@ -926,6 +928,8 @@ bool CIRCNetwork::AddChan(const CString& sName, bool bInConfig) {
 
     CChan* pChan = new CChan(sName, this, bInConfig);
     m_vChans.push_back(pChan);
+    SortChans();
+
     return true;
 }
 
@@ -1048,6 +1052,10 @@ void CIRCNetwork::JoinChans(set<CChan*>& sChans) {
         PutIRC("JOIN " + sJoin);
 }
 
+bool CIRCNetwork::CompareChanPtrsLesserThan(CChan* a, CChan* b) {
+    return *a < *b;
+}
+
 bool CIRCNetwork::JoinChan(CChan* pChan) {
     bool bReturn = false;
     NETWORKMODULECALL(OnJoining(*pChan), m_pUser, this, nullptr, &bReturn);
@@ -1135,6 +1143,11 @@ bool CIRCNetwork::DelQuery(const CString& sName) {
     }
 
     return false;
+}
+
+void CIRCNetwork::SortChans() {
+    // resort all channels
+    stable_sort(m_vChans.begin(), m_vChans.end(), CompareChanPtrsLesserThan);
 }
 
 // Server list

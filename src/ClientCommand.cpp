@@ -544,6 +544,7 @@ void CClient::UserCommand(CString& sLine) {
         Table.AddColumn(t_s("Clear", "listchans"));
         Table.AddColumn(t_s("Modes", "listchans"));
         Table.AddColumn(t_s("Users", "listchans"));
+        Table.AddColumn(t_s("Order", "listchans"));
 
         for (char cPerm : sPerms) {
             Table.AddColumn(CString(cPerm));
@@ -579,6 +580,8 @@ void CClient::UserCommand(CString& sLine) {
             Table.SetCell(t_s("Modes", "listchans"), pChan->GetModeString());
             Table.SetCell(t_s("Users", "listchans"),
                           CString(pChan->GetNickCount()));
+
+            Table.SetCell(t_s("Order", "listchans"), CString(pChan->GetSortOrder()));
 
             std::map<char, unsigned int> mPerms = pChan->GetPermCounts();
             for (char cPerm : sPerms) {
@@ -1539,6 +1542,35 @@ void CClient::UserCommand(CString& sLine) {
                           "Size of every buffer was set to {1} lines",
                           uLineCount)(uLineCount));
         }
+    } else if (sCommand.Equals("SETSORTORDER")) {
+        if (!m_pNetwork) {
+            PutStatus("You must be connected with a network to use this command");
+            return;
+        }
+
+        CString sChan = sLine.Token(1);
+
+        if (sChan.empty()) {
+            PutStatus("Usage: SetSortOrder <#chan> [number]");
+            return;
+        }
+
+        unsigned int uSortOrder = sLine.Token(2).ToUInt();
+        if (uSortOrder == 0)
+            uSortOrder = CChan::m_uDefaultSortOrder;
+
+        const vector<CChan*>& vChans = m_pNetwork->GetChans();
+        vector<CChan*>::const_iterator it;
+        unsigned int uMatches = 0;
+        for (it = vChans.begin(); it != vChans.end(); ++it) {
+            if ((*it)->GetName().WildCmp(sChan)) {
+                uMatches++;
+                (*it)->SetSortOrder(uSortOrder);
+            }
+        }
+        m_pNetwork->SortChans();
+
+        PutStatus("SortOrder for [" + CString(uMatches) + "] channels was set to [" + CString(uSortOrder) + "]");
     } else if (m_pUser->IsAdmin() && sCommand.Equals("TRAFFIC")) {
         CZNC::TrafficStatsPair Users, ZNC, Total;
         CZNC::TrafficStatsMap traffic =
@@ -1831,6 +1863,9 @@ void CClient::HelpUser(const CString& sFilter) {
     AddCommandHelp(
         "SwapChans", t_s("<#chan1> <#chan2>", "helpcmd|SwapChans|args"),
         t_s("Swap channels in sort order", "helpcmd|SwapChans|desc"));
+    AddCommandHelp("SetSortOrder",
+                   t_s("<#chan> [number]", "helpcmd|SetSortOrder|args"),
+                   t_s("Set the channel's sort order number", "helpcmd|SetSortOrder|desc"));
     AddCommandHelp("Attach", t_s("<#chans>", "helpcmd|Attach|args"),
                    t_s("Attach to channels", "helpcmd|Attach|desc"));
     AddCommandHelp("Detach", t_s("<#chans>", "helpcmd|Detach|args"),
